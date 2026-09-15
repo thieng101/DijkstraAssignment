@@ -1,42 +1,59 @@
 import java.io.BufferedReader;
 import java.io.FileReader;
+import java.io.FileWriter;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.util.ArrayList;
 import java.util.List;
+import java.nio.file.Paths;
 
 public class Main {
     public static void main(String[] args) throws Exception {
-        String filename = "Data.txt";
-        int[][] matrix = null;
-        try {
-            matrix = readInputFileIntoMatrix(filename);
-            writeToOutputFile(matrix);
+        String filename = (args.length > 0) ? args[0] : "Data.txt";
 
-        } catch (IOException e) {
-            System.out.println("Error reading file:");
-            e.printStackTrace();
-        }
-
-        int[] shortestPath = Dijkstra(matrix, 12, 34);
-        
-        // print out the source and desitnation then the shortest path then the sum of
-        // weights
-        System.out.println("Source: " + 12);
-        System.out.println("Destination: " + 34);
-        System.out.print("Shortest path: ");
-        for (int i = 0; i < shortestPath.length; i++) {
-            System.out.print(shortestPath[i]);
-            if (i < shortestPath.length - 1) {
-                System.out.print(" -> ");
+        // optional source/destination as args[1], args[2]
+        int source = 12;
+        int destination = 34;
+        if (args.length >= 3) {
+            try {
+                source = Integer.parseInt(args[1]);
+                destination = Integer.parseInt(args[2]);
+            } catch (NumberFormatException ex) {
+                System.out.println("Invalid source/destination args; using defaults 12 and 34.");
             }
         }
-        System.out.println();
-        int sum = 0;
-        for (int i = 0; i < shortestPath.length - 1; i++) {
-            sum += matrix[shortestPath[i]][shortestPath[i + 1]];
+
+        int[][] matrix;
+        try {
+            matrix = readInputFileIntoMatrix(filename);
+        } catch (IOException e) {
+            System.out.println("Error reading file: " + filename);
+            e.printStackTrace();
+            return;
         }
-        System.out.println("Sum of weights: " + sum);
+
+        if (matrix == null || matrix.length == 0) {
+            System.out.println("Input matrix is empty.");
+            return;
+        }
+
+        if (source < 0 || source >= matrix.length || destination < 0 || destination >= matrix.length) {
+            System.out.println("Source or destination out of range. matrix size=" + matrix.length);
+            return;
+        }
+
+        int[] shortestPath = Dijkstra(matrix, source, destination);
+
+        String outFile = "output.txt";
+        // clear existing output file (start fresh)
+        try (PrintWriter clear = new PrintWriter(outFile)) {
+            // truncate
+        }
+
+        // append the three-line result for the pair (source, destination)
+        writeResultToFile(outFile, source, destination, shortestPath, matrix);
+
+        System.out.println("Wrote result to " + Paths.get(outFile).toAbsolutePath());
     }
 
     // INPUT: the starting vertex s and ending vertex e, where A is the input
@@ -137,24 +154,39 @@ public class Main {
         return matrix;
     }
 
-    public static void writeToOutputFile(int[][] matrix) throws IOException {
+    public static void writeResultToFile(String outFilename, int s, int e, int[] path, int[][] matrix)
+            throws IOException {
+        // append the three-line result for pair (s,e) to outFilename
+        try (FileWriter fw = new FileWriter(outFilename, true);
+                PrintWriter writer = new PrintWriter(fw)) {
 
-        PrintWriter writer = new PrintWriter("output.txt");
+            // First row: "s, e"
+            writer.println(s + ", " + e);
 
-        for (int i = 0; i < matrix.length; i++) {
-
-            for (int j = 0; j < matrix[i].length; j++) {
-
-                writer.print(matrix[i][j]);
-
-                if (j < matrix[i].length - 1) {
-                    writer.print("\t");
+            // Second row: path or "No path"
+            if (path == null || path.length == 0) {
+                writer.println("No path");
+                writer.println("INF");
+                return;
+            } else {
+                for (int i = 0; i < path.length; i++) {
+                    writer.print(path[i]);
+                    if (i < path.length - 1)
+                        writer.print(", ");
                 }
+                writer.println();
             }
 
-            writer.println();
+            // Third row: total weight
+            int sum = 0;
+            if (path.length >= 2) {
+                for (int i = 0; i < path.length - 1; i++) {
+                    int u = path[i];
+                    int v = path[i + 1];
+                    sum += matrix[u][v];
+                }
+            }
+            writer.println(sum);
         }
-
-        writer.close();
     }
 }
